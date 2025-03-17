@@ -31,7 +31,7 @@
       <x>9</x>
       <y>10</y>
       <width>1261</width>
-      <height>142</height>
+      <height>148</height>
      </rect>
     </property>
     <layout class="QHBoxLayout" name="horizontalLayout_6">
@@ -334,6 +334,47 @@
             <set>Qt::AlignCenter</set>
            </property>
           </widget>
+         </item>
+         <item>
+          <layout class="QVBoxLayout" name="verticalLayout_11">
+           <item>
+            <widget class="QLabel" name="label_13">
+             <property name="font">
+              <font>
+               <family>Times New Roman</family>
+               <pointsize>12</pointsize>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(0, 0, 255);</string>
+             </property>
+             <property name="text">
+              <string>Tray</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="qty_inner_5">
+             <property name="font">
+              <font>
+               <family>Tahoma</family>
+               <pointsize>26</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
+              </font>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">color: rgb(0, 0, 255);</string>
+             </property>
+             <property name="text">
+              <string>-</string>
+             </property>
+             <property name="alignment">
+              <set>Qt::AlignCenter</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </item>

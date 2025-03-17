@@ -147,15 +147,33 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.lb_server.setStyleSheet("background-color: rgb(200, 0, 0); color: rgb(255, 255, 255);")
             print(e)
         
-        # Set dateBox to today
-        self.dateScan.setDate(QDate.currentDate())
+        # Set dateBox to the first day of the current month and year
+        today = QDate.currentDate()
+        first_day_of_month = QDate(today.year(), today.month(), 1)
+        self.dateScan.setDate(first_day_of_month)
+        self.line.setCurrentIndex(-1)
+        self.modelScan.setCurrentIndex(-1)
+        self.shift_scan.setCurrentIndex(-1)
+
+        # Disable line, modelScan, and shift_scan initially
+        self.line.setEnabled(False)
+        self.modelScan.setEnabled(False)
+        self.shift_scan.setEnabled(False)
+
+        # Enable line when date is chosen
+        self.dateScan.dateChanged.connect(lambda: self.line.setEnabled(True))
+
+        # Enable modelScan when line is chosen
+        self.line.currentIndexChanged.connect(lambda: self.modelScan.setEnabled(True) if self.line.currentIndex() != -1 else self.modelScan.setEnabled(False))
+
+        # Enable shift_scan when modelScan is chosen
+        self.modelScan.currentIndexChanged.connect(lambda: self.shift_scan.setEnabled(True) if self.modelScan.currentIndex() != -1 else self.shift_scan.setEnabled(False))
+        
+        self.shift_scan.currentIndexChanged.connect(self.verify_data())
+        
         # Set table column width
         self.judgement_na()
         
-        self.work_order.returnPressed.connect(lambda: self.verify_work_order(self.work_order.text()))
-        self.inner_code.returnPressed.connect(lambda: self.verify_inner_code(self.inner_code.text()))
-        self.second_inner_code.returnPressed.connect(lambda: self.verify_2ndinner_code(self.second_inner_code.text()))
-        self.serial_number.returnPressed.connect(lambda: self.verify_serial_number(self.serial_number.text()))
         self.inspect_button.clicked.connect(self.show_inspection_dialog)
 
         QTableWidget.setColumnWidth(self.result_table, 0, 5)
@@ -250,6 +268,13 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 klipel_record = self.cursor_spk.fetchone()
                 self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s ", (self.inner_code.text(),))
                 inner_quantity = self.cursor_spk.fetchone()[0]
+
+                if inner_quantity == int(self.qty_inner.text()) - 1:
+                    QMessageBox.information(self, "Notification", "Full carton.")
+
+                if inner_quantity >= int(self.qty_inner.text()):
+                    QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
+                    return
                 if record is not None:
                     result = record[2]
                     if result:
@@ -268,7 +293,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                         self.database_spk_conn.commit()
                         self.judgement_ok()
                         self.show_data()
-                        # QMessageBox.information(self, "Success", "Serial number verification succeeded and data inserted.")
+                        self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
+                        self.serial_number.setText(serial_number)
                     else:
                         self.judgement_ng()
                         QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
