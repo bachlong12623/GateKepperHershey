@@ -1,13 +1,18 @@
 import configparser
 from time import sleep
+import time
 from PyQt5 import uic
 from PyQt5.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QMessageBox, QDialog, QVBoxLayout, QLabel, QLineEdit, QPushButton, QSpinBox
-from PyQt5.QtCore import Qt, QDate, QTimer
+from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal, QObject, QThread
 from PyQt5 import QtGui
 import sys
 import psycopg2
 from datetime import datetime
+
+import serial
 import verify as verify
+import threading
+from serial_port import BarcodeScanner, auto_detect_port  # Import the BarcodeScanner class and auto_detect_port function
 
 Ui_MainWindow, QtBaseClass = uic.loadUiType("MainWindow.ui")
 
@@ -99,12 +104,35 @@ class InspectionDialog(QDialog):
             config.write(configfile)
         self.accept()
 
+class SerialReader(QObject):
+    data_received = pyqtSignal(str)
+
+    def __init__(self, barcode_scanner):
+        super().__init__()
+        self.barcode_scanner = barcode_scanner
+
+    def read_serial_data(self):
+        buffer = ""
+        while True:
+            sleep(0.1)
+            if self.barcode_scanner.connection and self.barcode_scanner.connection.is_open:
+                try:
+                    data = self.barcode_scanner.connection.read(self.barcode_scanner.connection.in_waiting).decode(errors="ignore")
+                    if data:
+                        buffer += data
+                        while '\r' in buffer or '\n' in buffer:
+                            line, buffer = buffer.split("\n", 1) if "\n" in buffer else buffer.split("\r", 1)
+                            self.data_received.emit(line.strip())
+                except serial.SerialException as e:
+                    print(f"Error reading from serial port: {e}")
+                    break
+
 class MainWindow(QtBaseClass, Ui_MainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.setupUi(self)
 
-        #connect to database postgreesql
+        # Connect to database PostgreSQL
         self.read_settings()
         try:
             self.database_glovia_conn = psycopg2.connect(host=self.database_ip, port=self.database_port, database=self.database_glovia, user=self.database_user, password=self.database_password)
@@ -119,9 +147,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.lb_server.setStyleSheet("background-color: rgb(200, 0, 0); color: rgb(255, 255, 255);")
             print(e)
         
-        #set dateBox to today
+        # Set dateBox to today
         self.dateScan.setDate(QDate.currentDate())
-        #set table column width
+        # Set table column width
         self.judgement_na()
         
         self.work_order.returnPressed.connect(lambda: self.verify_work_order(self.work_order.text()))
@@ -136,15 +164,42 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         QTableWidget.setColumnWidth(self.result_table, 3, 100)
         QTableWidget.setColumnWidth(self.result_table, 4, 150)
         QTableWidget.setColumnWidth(self.result_table, 5, 600)
-     
-    
-    def show_inspection_dialog(self):
+
+        # Auto-detect and initialize BarcodeScanner
+        port = auto_detect_port()
+        if port:
+            self.barcode_scanner = BarcodeScanner(port=port)
+            self.barcode_scanner.connect()
+
+            # Initialize SerialReader
+            self.serial_reader = SerialReader(self.barcode_scanner)
+            self.serial_reader.data_received.connect(self.verify_string)
+
+            # Initialize QThread
+            self.thread = QThread()
+            self.serial_reader.moveToThread(self.thread)
+            self.thread.started.connect(self.serial_reader.read_serial_data)
+            self.thread.start()
+        else:
+            print("No serial ports found.")
+
+    def verify_string(self, string):
+        print(string)
+        if  self.work_order.text() =="":
+            self.verify_work_order(string)
+        elif self.inner_code.text() == "":
+            self.verify_inner_code(string)
+        elif self.second_inner_code.text() == "":
+            self.verify_2ndinner_code(string)
+        else:
+            self.verify_serial_number(string)
+    def show_inspection_dialog(self):        
         inspection_dialog = InspectionDialog(self)
         inspection_dialog.fetch_data(self.cursor_spk)
         inspection_dialog.exec_()
 
     def read_settings(self):
-        #read settings from file
+        # Read settings from file
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
         self.database_ip = self.config.get('Database', 'database_ip')
@@ -213,7 +268,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                         self.database_spk_conn.commit()
                         self.judgement_ok()
                         self.show_data()
-                        QMessageBox.information(self, "Success", "Serial number verification succeeded and data inserted.")
+                        # QMessageBox.information(self, "Success", "Serial number verification succeeded and data inserted.")
                     else:
                         self.judgement_ng()
                         QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
@@ -242,10 +297,11 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                     self.judgement_ng()
                     QMessageBox.critical(self, "Error", "Work order verification failed. Model not match.")
                     return
-                self.work_order.setEnabled(False)
-                self.inner_code.setEnabled(True)
-                self.inner_code.setFocus()
+                # self.work_order.setEnabled(False)
+                # self.inner_code.setEnabled(True)
+                # self.inner_code.setFocus()
                 self.judgement_ok()
+                self.work_order.setText(work_order)
             else:
                 self.work_order.setText("")
                 self.judgement_ng()
@@ -267,23 +323,25 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 QMessageBox.critical(self, "Error", "Code verification failed. Invalid inner code.")            
                 return
             else:
-                self.inner_code.setEnabled(False)
-                self.second_inner_code.setEnabled(True)
-                self.second_inner_code.setFocus()
+                # self.inner_code.setEnabled(False)
+                # self.second_inner_code.setEnabled(True)
+                # self.second_inner_code.setFocus()
                 self.qty_inner.setText(QR.quantity)
+                self.inner_code.setText(code)
     
     def verify_2ndinner_code(self, code):
         if code != self.inner_code.text():
             QMessageBox.critical(self, "Error", "Code verification failed. Inner code not match.")
             return
         else:
-            self.second_inner_code.setEnabled(False)
-            self.serial_number.setEnabled(True)
+            # self.second_inner_code.setEnabled(False)
+            # self.serial_number.setEnabled(True)
             self.dateScan.setEnabled(False)
             self.line.setEnabled(False)
             self.modelScan.setEnabled(False)
             self.shift_scan.setEnabled(False)
-            self.serial_number.setFocus()
+            self.second_inner_code.setText(code)
+            # self.serial_number.setFocus()
             self.show_data()
     
     def show_data(self):

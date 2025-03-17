@@ -205,8 +205,11 @@
          </item>
          <item>
           <widget class="QLineEdit" name="work_order">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
-            <string>660916-250106-PP1-0001</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -258,7 +261,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>2025011501$$FOSTER$13700-HAE002R-17$25140001$20250411$160</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -287,7 +290,7 @@
             <bool>false</bool>
            </property>
            <property name="text">
-            <string>2025011501$$FOSTER$13700-HAE002R-17$25140001$20250411$160</string>
+            <string/>
            </property>
           </widget>
          </item>
@@ -361,7 +364,7 @@
               </size>
              </property>
              <property name="text">
-              <string>EW1U9VKMNHY00000</string>
+              <string/>
              </property>
             </widget>
            </item>
