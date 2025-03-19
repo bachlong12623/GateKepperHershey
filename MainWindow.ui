@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1280</width>
-    <height>1024</height>
+    <height>1026</height>
    </rect>
   </property>
   <property name="font">
@@ -141,6 +141,9 @@
          </item>
          <item row="3" column="0">
           <widget class="QComboBox" name="modelScan">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <item>
             <property name="text">
              <string>660916</string>
@@ -150,6 +153,9 @@
          </item>
          <item row="3" column="1">
           <widget class="QComboBox" name="shift_scan">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <item>
             <property name="text">
              <string>01</string>
@@ -164,6 +170,9 @@
          </item>
          <item row="1" column="1">
           <widget class="QComboBox" name="line">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <item>
             <property name="text">
              <string>SPM1011</string>
@@ -598,6 +607,9 @@
          </item>
          <item>
           <widget class="QPushButton" name="done_button">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
            <property name="text">
             <string>Xong</string>
            </property>

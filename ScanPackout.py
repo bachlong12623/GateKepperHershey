@@ -140,6 +140,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             
             self.database_spk_conn = psycopg2.connect(host=self.database_ip, port=self.database_port, database=self.database_spk, user=self.database_user, password=self.database_password)
             self.cursor_spk = self.database_spk_conn.cursor()
+            
             self.lb_server.setText("OK")
             self.lb_server.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
         except Exception as e:
@@ -155,10 +156,6 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.modelScan.setCurrentIndex(-1)
         self.shift_scan.setCurrentIndex(-1)
 
-        # Disable line, modelScan, and shift_scan initially
-        self.line.setEnabled(False)
-        self.modelScan.setEnabled(False)
-        self.shift_scan.setEnabled(False)
 
         # Enable line when date is chosen
         self.dateScan.dateChanged.connect(lambda: self.line.setEnabled(True))
@@ -170,6 +167,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.modelScan.currentIndexChanged.connect(lambda: self.shift_scan.setEnabled(True) if self.modelScan.currentIndex() != -1 else self.shift_scan.setEnabled(False))
         
         self.shift_scan.currentIndexChanged.connect(self.verify_combobox)
+        self.done_button.clicked.connect(self.clear_data)
         
         # Set table column width
         self.judgement_na()
@@ -202,6 +200,13 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             print("No serial ports found.")
     def verify_combobox(self):
         pass
+    
+    def clear_data(self):
+        self.inner_code.setText("")
+        self.second_inner_code.setText("")
+        self.serial_number.setText("")
+        self.result_table.setRowCount(0)
+        self.judgement_na()
     def verify_string(self, string):
         print(string)
         if  self.work_order.text() =="":
@@ -229,87 +234,89 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.database_password = self.config.get('Database', 'database_password')
     
     def verify_serial_number(self, serial_number):
-        if serial_number[0:5] == self.en_wo:
-            try:
-                # Check if serial number exists in i_packing table
-                self.cursor_spk.execute("SELECT * FROM i_packing WHERE serial = %s", (serial_number,))
-                record = self.cursor_spk.fetchone()
-                if record is not None:
-                    # Show password dialog with additional information
-                    password_dialog = PasswordDialog(self, serial_number=serial_number, inner_code=self.inner_code.text(), position=str(record[0]))
-                    while True:
-                        if password_dialog.exec_() == QDialog.Accepted:
-                            entered_password = password_dialog.get_password()
-                            # Check if the entered password is correct
-                            if entered_password == datetime.now().strftime("%y%m%d") or entered_password == '27894869':
-                                QMessageBox.critical(self, "Error", "Serial number already scanned.")
-                                #insert to i_packing_duplicate table
-                                self.cursor_spk.execute(
-                                    """
-                                    INSERT INTO i_packing_duplicate (
-                                         id, date, line, model, shift, inner_code, serial, klippel, result, scan_time
-                                    ) VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                                    """,
-                                    (
-                                        record[0], record[1], record[2], record[3], record[4], record[5], serial_number, record[7], False, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                                    )
-                                )
-                                self.database_spk_conn.commit()
-                                self.show_data()
-                                break
-                            else:
-                                QMessageBox.critical(self, "Error", "Incorrect password. Application will not proceed.")
-                        else:
-                            QMessageBox.critical(self, "Error", "Password input required. Application will not proceed.")
-                    return
-
-                self.cursor_spk.execute("SELECT * FROM i_output WHERE id = %s", (serial_number,))
-                record = self.cursor_spk.fetchone()
-                self.cursor_spk.execute("SELECT * FROM i_klippel WHERE id = %s", (serial_number,))
-                klipel_record = self.cursor_spk.fetchone()
-                self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s ", (self.inner_code.text(),))
-                inner_quantity = self.cursor_spk.fetchone()[0]
-
-                if inner_quantity == int(self.qty_inner.text()) - 1:
-                    QMessageBox.information(self, "Notification", "Full carton.")
-
-                if inner_quantity >= int(self.qty_inner.text()):
-                    QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
-                    return
-                if record is not None:
-                    result = record[2]
-                    if result:
-                        # Insert to table i_packout
-                        self.cursor_spk.execute(
-                            """
-                            INSERT INTO i_packing (
-                                id, date, line, model, shift, inner_code, serial, klippel, result, scan_time
-                            ) VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                            """,
-                            (
-                                inner_quantity+1, self.dateScan.date().toString("yyyy-MM-dd"), self.line.currentText(), self.modelScan.currentText(), self.shift_scan.currentText(), self.inner_code.text(),
-                                serial_number, klipel_record[8], bool(result), datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                            )
-                        )
-                        self.database_spk_conn.commit()
-                        self.judgement_ok()
-                        self.show_data()
-                        self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
-                        self.serial_number.setText(serial_number)
-                    else:
-                        self.judgement_ng()
-                        QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
-                else:
-                    self.judgement_ng()
-                    QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
-            except Exception as e:
-                print(e)
-                self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
-        else:
+        if serial_number[:5] != self.en_wo:
             self.judgement_ng()
             QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not match with work order.")
-    
+            return
+
+        try:
+            self.cursor_spk.execute("SELECT * FROM i_packing WHERE serial = %s", (serial_number,))
+            record = self.cursor_spk.fetchone()
+            if record:
+                self.handle_duplicate_serial(serial_number, record)
+                return
+
+            self.cursor_spk.execute("SELECT * FROM i_output WHERE id = %s", (serial_number,))
+            record = self.cursor_spk.fetchone()
+            self.cursor_spk.execute("SELECT * FROM i_klippel WHERE id = %s", (serial_number,))
+            klippel_record = self.cursor_spk.fetchone()
+            self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
+            inner_quantity = self.cursor_spk.fetchone()[0]
+
+            if inner_quantity >= int(self.qty_inner.text()):
+                QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
+                self.done_button.setEnabled(True)
+                return
+
+            if inner_quantity == int(self.qty_inner.text()) - 1:
+                QMessageBox.information(self, "Notification", "Full carton.")
+                self.done_button.setEnabled(True)
+
+            if record and record[2]:
+                self.insert_packing_record(serial_number, klippel_record, inner_quantity)
+                self.judgement_ok()
+                self.show_data()
+                self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
+                self.serial_number.setText(serial_number)
+            else:
+                self.judgement_ng()
+                QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
+        except Exception as e:
+            print(e)
+            self.judgement_ng()
+            QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
+
+    def handle_duplicate_serial(self, serial_number, record):
+        password_dialog = PasswordDialog(self, serial_number=serial_number, inner_code=self.inner_code.text(), position=str(record[0]))
+        while True:
+            if password_dialog.exec_() == QDialog.Accepted:
+                entered_password = password_dialog.get_password()
+                if entered_password in [datetime.now().strftime("%y%m%d"), '27894869']:
+                    QMessageBox.critical(self, "Error", "Serial number already scanned.")
+                    self.insert_duplicate_record(serial_number, record)
+                    self.show_data()
+                    break
+                else:
+                    QMessageBox.critical(self, "Error", "Incorrect password. Application will not proceed.")
+            else:
+                QMessageBox.critical(self, "Error", "Password input required. Application will not proceed.")
+
+    def insert_packing_record(self, serial_number, klippel_record, inner_quantity):
+        self.cursor_spk.execute(
+            """
+            INSERT INTO i_packing (
+                id, date, line, model, shift, inner_code, serial, klippel, result, scan_time
+            ) VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                inner_quantity + 1, self.dateScan.date().toString("yyyy-MM-dd"), self.line.currentText(), self.modelScan.currentText(), self.shift_scan.currentText(), self.inner_code.text(),
+                serial_number, klippel_record[8], True, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+        self.database_spk_conn.commit()
+
+    def insert_duplicate_record(self, serial_number, record):
+        self.cursor_spk.execute(
+            """
+            INSERT INTO i_packing_duplicate (
+                id, date, line, model, shift, inner_code, serial, klippel, result, scan_time
+            ) VALUES (%s,%s, %s, %s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                record[0], record[1], record[2], record[3], record[4], record[5], serial_number, record[7], False, datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            )
+        )
+        self.database_spk_conn.commit()
     def verify_work_order(self, work_order):
         try:
             wo = work_order[:-5]
@@ -324,9 +331,6 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                     self.judgement_ng()
                     QMessageBox.critical(self, "Error", "Work order verification failed. Model not match.")
                     return
-                # self.work_order.setEnabled(False)
-                # self.inner_code.setEnabled(True)
-                # self.inner_code.setFocus()
                 self.judgement_ok()
                 self.work_order.setText(work_order)
             else:
@@ -350,9 +354,6 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 QMessageBox.critical(self, "Error", "Code verification failed. Invalid inner code.")            
                 return
             else:
-                # self.inner_code.setEnabled(False)
-                # self.second_inner_code.setEnabled(True)
-                # self.second_inner_code.setFocus()
                 self.qty_inner.setText(QR.quantity)
                 self.inner_code.setText(code)
     
@@ -361,14 +362,12 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             QMessageBox.critical(self, "Error", "Code verification failed. Inner code not match.")
             return
         else:
-            # self.second_inner_code.setEnabled(False)
-            # self.serial_number.setEnabled(True)
             self.dateScan.setEnabled(False)
             self.line.setEnabled(False)
             self.modelScan.setEnabled(False)
             self.shift_scan.setEnabled(False)
+            self.done_button.setEnabled(False)
             self.second_inner_code.setText(code)
-            # self.serial_number.setFocus()
             self.show_data()
     
     def show_data(self):
@@ -394,6 +393,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         config.read('config.ini')
         comparison_value = config['Settings'].getint('klippel_time', 4)  # Default to 4 if not set
         
+        
+      
+        
         for i, record in enumerate(records):
             self.result_table.setItem(i, 0, QTableWidgetItem(str(record[0])))
             self.result_table.setItem(i, 1, QTableWidgetItem(str(record[6])))
@@ -401,6 +403,17 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.result_table.setItem(i, 3, self.ok_item() if record[7] <= comparison_value else self.ng_item())
             self.result_table.setItem(i, 4, QTableWidgetItem(record[9].strftime("%Y-%m-%d %H:%M:%S")))
             self.result_table.setItem(i, 5, QTableWidgetItem(record[5]))
+        
+        
+        self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
+        inner_quantity = self.cursor_spk.fetchone()[0]
+        if inner_quantity >= int(self.qty_inner.text()):
+            QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
+            self.done_button.setEnabled(True)
+            return
+        if inner_quantity == int(self.qty_inner.text()) - 1:
+            QMessageBox.information(self, "Notification", "Full carton.")
+            self.done_button.setEnabled(True)
     def ok_item(self):
         ok_item = QTableWidgetItem("OK")
         ok_item.setData(Qt.BackgroundRole, QtGui.QColor(0, 200, 0))
