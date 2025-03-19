@@ -4,7 +4,7 @@
 
 ALTER TABLE i_output RENAME COLUMN pack_weight TO pack_time;
 
-ALTER COLUMN pack_time SET DATA TYPE TIMESTAMP WITH TIME ZONE USING TO_TIMESTAMP(pack_time);
+ALTER TABLE i_output ALTER COLUMN pack_time SET DATA TYPE TIMESTAMP WITH TIME ZONE USING TO_TIMESTAMP(pack_time);
 
 ----------------------------------------------------------------------------------------------
 
@@ -33,3 +33,11 @@ ALTER TABLE IF EXISTS public.i_packing
 
 ----------------------------------------------------------------------------------------------
 
+UPDATE public.wo
+SET wo = 'true';
+
+ALTER TABLE public.wo
+    RENAME COLUMN wo TO wo_status;
+
+ALTER TABLE public.wo
+    ALTER COLUMN wo_status TYPE BOOLEAN USING (wo_status::BOOLEAN);

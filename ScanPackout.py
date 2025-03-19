@@ -169,7 +169,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         # Enable shift_scan when modelScan is chosen
         self.modelScan.currentIndexChanged.connect(lambda: self.shift_scan.setEnabled(True) if self.modelScan.currentIndex() != -1 else self.shift_scan.setEnabled(False))
         
-        self.shift_scan.currentIndexChanged.connect(self.verify_data())
+        self.shift_scan.currentIndexChanged.connect(self.verify_combobox)
         
         # Set table column width
         self.judgement_na()
@@ -200,7 +200,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.thread.start()
         else:
             print("No serial ports found.")
-
+    def verify_combobox(self):
+        pass
     def verify_string(self, string):
         print(string)
         if  self.work_order.text() =="":
