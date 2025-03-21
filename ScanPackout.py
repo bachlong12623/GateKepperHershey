@@ -86,7 +86,6 @@ class InspectionDialog(QDialog):
     def fetch_data(self, cursor):
         cursor.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (datetime.now().strftime("%Y-%m-%d"),))
         records = cursor.fetchall()
-        print(records)
         self.table.setRowCount(len(records))
         for i, record in enumerate(records):
             for j, value in enumerate(record):
@@ -206,9 +205,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.second_inner_code.setText("")
         self.serial_number.setText("")
         self.result_table.setRowCount(0)
+        self.done_button.setEnabled(False)
         self.judgement_na()
     def verify_string(self, string):
-        print(string)
         if  self.work_order.text() =="":
             self.verify_work_order(string)
         elif self.inner_code.text() == "":
@@ -264,6 +263,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
 
             if record and record[2]:
                 self.insert_packing_record(serial_number, klippel_record, inner_quantity)
+                self.judgement_na()
+                sleep(0.2)
                 self.judgement_ok()
                 self.show_data()
                 self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
@@ -411,9 +412,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
             self.done_button.setEnabled(True)
             return
-        if inner_quantity == int(self.qty_inner.text()) - 1:
-            QMessageBox.information(self, "Notification", "Full carton.")
-            self.done_button.setEnabled(True)
+        # if inner_quantity == int(self.qty_inner.text()) - 1:
+        #     QMessageBox.information(self, "Notification", "Full carton.")
+        #     self.done_button.setEnabled(True)
     def ok_item(self):
         ok_item = QTableWidgetItem("OK")
         ok_item.setData(Qt.BackgroundRole, QtGui.QColor(0, 200, 0))

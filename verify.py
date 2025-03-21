@@ -5,7 +5,7 @@ class QRCode:
         
         
         self.work_order = work_order
-        self.code = code
+        self.code = code.replace(" ", "")
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
         self.vendor_code = self.config.get('Settings', 'vendor_code')
@@ -49,6 +49,7 @@ class QRCode:
         # Verify 4th part of the code
         if not self.is_valid_pn(code_parts[3]):
             print('Part number is not valid')
+            print(code_parts[3])
             return False
         # Verify 5th part of the code
         if not self.is_valid_datecode(code_parts[5]):

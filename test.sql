@@ -65,3 +65,5 @@ ALTER TABLE public.wo
 ALTER TABLE public.wo
     ALTER COLUMN wo_status TYPE BOOLEAN USING (wo_status::BOOLEAN);
 
+--------------------------------------------------------------
+-- Add date code string to i_output table
