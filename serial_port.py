@@ -26,12 +26,15 @@ class BarcodeScanner:
                 print(f"✅ Đã kết nối {self.port} với baudrate {self.baudrate}")
                 time.sleep(0.5)
                 self.connection.reset_input_buffer()  # Xóa buffer trước khi bắt đầu đọc
+<<<<<<< HEAD
                 #self.start_reading()
+=======
+                #self.start_reading()  # Start reading immediately after connecting
+>>>>>>> 7b050c155b08a7f869085a4d4f1030516cc43257
         except serial.SerialException as e:
             print(f"❌ Không thể kết nối {self.port}: {e}")
         except PermissionError as e:
             print(f"⛔ Quyền bị từ chối khi kết nối {self.port}: {e}")
-
 
     def disconnect(self):
         """Ngắt kết nối an toàn."""
@@ -72,7 +75,6 @@ class BarcodeScanner:
             except serial.SerialException:
                 pass
 
-
     def stop_reading(self):
         """Dừng luồng đọc dữ liệu."""
         self.reading = False
@@ -98,7 +100,6 @@ class BarcodeScanner:
                 except serial.SerialException as e:
                     print(f"⚠️ Lỗi khi đọc từ {self.port}: {e}")
                     self.reading = False
-
 
 def auto_detect_port():
     """Tự động tìm cổng serial khả dụng."""
