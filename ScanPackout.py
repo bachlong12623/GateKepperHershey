@@ -86,7 +86,6 @@ class InspectionDialog(QDialog):
     def fetch_data(self, cursor):
         cursor.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (datetime.now().strftime("%Y-%m-%d"),))
         records = cursor.fetchall()
-        print(records)
         self.table.setRowCount(len(records))
         for i, record in enumerate(records):
             for j, value in enumerate(record):
@@ -110,19 +109,20 @@ class SerialReader(QObject):
     def __init__(self, barcode_scanner):
         super().__init__()
         self.barcode_scanner = barcode_scanner
-
     def read_serial_data(self):
         buffer = ""
         while True:
             sleep(0.1)
             if self.barcode_scanner.connection and self.barcode_scanner.connection.is_open:
                 try:
-                    data = self.barcode_scanner.connection.read(self.barcode_scanner.connection.in_waiting).decode(errors="ignore")
-                    if data:
-                        buffer += data
-                        while '\r' in buffer or '\n' in buffer:
-                            line, buffer = buffer.split("\n", 1) if "\n" in buffer else buffer.split("\r", 1)
-                            self.data_received.emit(line.strip())
+                    while self.barcode_scanner.connection.in_waiting > 0:
+                        data = self.barcode_scanner.connection.read(self.barcode_scanner.connection.in_waiting).decode(errors="ignore")
+                        if data:
+                            print(data)
+                            buffer += data
+                            while '\r' in buffer or '\n' in buffer:
+                                line, buffer = buffer.split("\n", 1) if "\n" in buffer else buffer.split("\r", 1)
+                                self.data_received.emit(line.strip())
                 except serial.SerialException as e:
                     print(f"Error reading from serial port: {e}")
                     break
@@ -180,24 +180,26 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         QTableWidget.setColumnWidth(self.result_table, 3, 100)
         QTableWidget.setColumnWidth(self.result_table, 4, 150)
         QTableWidget.setColumnWidth(self.result_table, 5, 600)
+        try:
+            # Auto-detect and initialize BarcodeScanner
+            port = auto_detect_port()
+            if port:
+                self.barcode_scanner = BarcodeScanner(port=port)
+                self.barcode_scanner.connect()
 
-        # Auto-detect and initialize BarcodeScanner
-        port = auto_detect_port()
-        if port:
-            self.barcode_scanner = BarcodeScanner(port=port)
-            self.barcode_scanner.connect()
+                # Initialize SerialReader
+                self.serial_reader = SerialReader(self.barcode_scanner)
+                self.serial_reader.data_received.connect(self.verify_string)
 
-            # Initialize SerialReader
-            self.serial_reader = SerialReader(self.barcode_scanner)
-            self.serial_reader.data_received.connect(self.verify_string)
-
-            # Initialize QThread
-            self.thread = QThread()
-            self.serial_reader.moveToThread(self.thread)
-            self.thread.started.connect(self.serial_reader.read_serial_data)
-            self.thread.start()
-        else:
-            print("No serial ports found.")
+                # Initialize QThread
+                self.thread = QThread()
+                self.serial_reader.moveToThread(self.thread)
+                self.thread.started.connect(self.serial_reader.read_serial_data)
+                self.thread.start()
+            else:
+                print("No serial ports found.")
+        except Exception as e:
+            print(e)
     def verify_combobox(self):
         pass
     
@@ -206,9 +208,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.second_inner_code.setText("")
         self.serial_number.setText("")
         self.result_table.setRowCount(0)
+        self.done_button.setEnabled(False)
         self.judgement_na()
     def verify_string(self, string):
-        print(string)
         if  self.work_order.text() =="":
             self.verify_work_order(string)
         elif self.inner_code.text() == "":
@@ -264,6 +266,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
 
             if record and record[2]:
                 self.insert_packing_record(serial_number, klippel_record, inner_quantity)
+                self.judgement_na()
+                sleep(0.2)
                 self.judgement_ok()
                 self.show_data()
                 self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
@@ -371,27 +375,30 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.show_data()
     
     def show_data(self):
-        self.cursor_spk.execute("SELECT * FROM i_packing WHERE inner_code = %s ORDER BY id DESC", (self.inner_code.text(),))
-        records = self.cursor_spk.fetchall()
-        self.result_table.setRowCount(len(records))
-        
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        self.cursor_spk.execute("SELECT * FROM i_packing WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
-        records_today = self.cursor_spk.fetchall()
-        
-        self.cursor_spk.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
-        duplicate_records_today = self.cursor_spk.fetchall()
-        
-        total_ng_today = sum(1 for record in records_today if not record[8]) + len(duplicate_records_today)
-        
-        self.total_today.setText(str(len(records_today) + total_ng_today))
-        self.ok_today.setText(str(sum(1 for record in records_today if record[8])))
-        self.ng_today.setText(str(total_ng_today))
-        
-        # Read comparison value from config.ini
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        comparison_value = config['Settings'].getint('klippel_time', 4)  # Default to 4 if not set
+        try:
+            self.cursor_spk.execute("SELECT * FROM i_packing WHERE inner_code = %s ORDER BY id DESC", (self.inner_code.text(),))
+            records = self.cursor_spk.fetchall()
+            self.result_table.setRowCount(len(records))
+            
+            today_str = datetime.now().strftime("%Y-%m-%d")
+            self.cursor_spk.execute("SELECT * FROM i_packing WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
+            records_today = self.cursor_spk.fetchall()
+            
+            self.cursor_spk.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
+            duplicate_records_today = self.cursor_spk.fetchall()
+            
+            total_ng_today = sum(1 for record in records_today if not record[8]) + len(duplicate_records_today)
+            
+            self.total_today.setText(str(len(records_today) + total_ng_today))
+            self.ok_today.setText(str(sum(1 for record in records_today if record[8])))
+            self.ng_today.setText(str(total_ng_today))
+            
+            # Read comparison value from config.ini
+            config = configparser.ConfigParser()
+            config.read('config.ini')
+            comparison_value = config['Settings'].getint('klippel_time', 4)  # Default to 4 if not set
+        except Exception as e:
+            print(e)
         
         
       
@@ -411,9 +418,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
             self.done_button.setEnabled(True)
             return
-        if inner_quantity == int(self.qty_inner.text()) - 1:
-            QMessageBox.information(self, "Notification", "Full carton.")
-            self.done_button.setEnabled(True)
+        # if inner_quantity == int(self.qty_inner.text()) - 1:
+        #     QMessageBox.information(self, "Notification", "Full carton.")
+        #     self.done_button.setEnabled(True)
     def ok_item(self):
         ok_item = QTableWidgetItem("OK")
         ok_item.setData(Qt.BackgroundRole, QtGui.QColor(0, 200, 0))

@@ -26,7 +26,7 @@ class BarcodeScanner:
                 print(f"✅ Đã kết nối {self.port} với baudrate {self.baudrate}")
                 time.sleep(0.5)
                 self.connection.reset_input_buffer()  # Xóa buffer trước khi bắt đầu đọc
-                # self.start_reading()
+                #self.start_reading()
         except serial.SerialException as e:
             print(f"❌ Không thể kết nối {self.port}: {e}")
         except PermissionError as e:
