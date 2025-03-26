@@ -30,17 +30,7 @@
      <widget class="QTableWidget" name="table">
       <column>
        <property name="text">
-        <string>ID</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Date</string>
-       </property>
-      </column>
-      <column>
-       <property name="text">
-        <string>Line</string>
+        <string>No.</string>
        </property>
       </column>
       <column>
@@ -55,27 +45,27 @@
       </column>
       <column>
        <property name="text">
-        <string>Inner Code</string>
+        <string>Inner</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>Serial</string>
+        <string>Số Serial</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>Klippel</string>
+        <string>Klippel Check</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>Result</string>
+        <string>Đánh Giá</string>
        </property>
       </column>
       <column>
        <property name="text">
-        <string>Scan Time</string>
+        <string>Ngày Scan</string>
        </property>
       </column>
      </widget>
@@ -120,7 +110,7 @@
      <rect>
       <x>30</x>
       <y>20</y>
-      <width>301</width>
+      <width>305</width>
       <height>41</height>
      </rect>
     </property>

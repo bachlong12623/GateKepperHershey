@@ -18,50 +18,64 @@ Ui_MainWindow, QtBaseClass = uic.loadUiType("MainWindow.ui")
 
 
 class PasswordDialog(QDialog):
-    def __init__(self, parent=None, serial_number="", inner_code="", position=""):
+    def __init__(self, parent=None, serial_number="", inner_code="", position="", scanner=None):
         super(PasswordDialog, self).__init__(parent)
         self.setWindowTitle("Enter Password")
         self.setModal(True)
         self.setFixedSize(700, 500)  # Increase the size of the dialog
-        
+
+        self.scanner = scanner  # Pass the scanner object to the dialog
+
         layout = QVBoxLayout()
-        
+
         self.setStyleSheet("background-color: blue;")
-        
+
         self.info_label = QLabel(f"Serial đã bị trùng\nSerial Number: {serial_number}\nInner Code: {inner_code}\nVị trí: {position}")
         self.info_label.setStyleSheet("color: yellow; font-size: 18px;")  # Set the text color to yellow and increase font size
         layout.addWidget(self.info_label)
-        
-        self.label = QLabel("Please enter the password to proceed:")
+
+        self.label = QLabel("Quét mật khẩu để tiếp tục:")
         self.label.setStyleSheet("color: yellow; font-size: 20px;")  # Set the text color to yellow and increase font size
         layout.addWidget(self.label)
-        
-        self.password_input = QLineEdit()
-        self.password_input.setEchoMode(QLineEdit.Password)
-        self.password_input.setStyleSheet("font-size: 24px; padding: 10px;")
-        layout.addWidget(self.password_input)
-        
+
+        self.password_display = QLineEdit()  # Display scanned password
+        self.password_display.setEchoMode(QLineEdit.Password)  # Hide password input
+        self.password_display.setStyleSheet("font-size: 24px; padding: 10px; color: white;")
+        self.password_display.setReadOnly(True)  # Make it read-only
+        layout.addWidget(self.password_display)
+
         self.submit_button = QPushButton("Submit")
         self.submit_button.setStyleSheet("font-size: 24px; padding: 10px; background-color: yellow; color: blue;")
         self.submit_button.clicked.connect(self.accept)
         layout.addWidget(self.submit_button)
         self.setLayout(layout)
-        
+
         # Timer for blinking background
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.blink_background)
         self.timer.start(500)  # Blink every 500 milliseconds
-        
+
         self.blink_state = False
-        
+
+        # Connect scanner signal
+        if self.scanner:
+            self.scanner.data_received.connect(self.handle_scanner_input)
+
+        self.scanned_password = ""
+
+    def handle_scanner_input(self, data):
+        """Handle input from the scanner."""
+        self.scanned_password = data.strip()
+        self.password_display.setText(self.scanned_password)
+
     def get_password(self):
-        return self.password_input.text()
-    
+        return self.scanned_password
+
     def closeEvent(self, event):
         # Prevent closing the dialog without entering the correct password
         QMessageBox.critical(self, "Error", "Password input required. Application will not proceed.")
         event.ignore()
-    
+
     def blink_background(self):
         if self.blink_state:
             self.setStyleSheet("background-color: red;")
@@ -88,8 +102,14 @@ class InspectionDialog(QDialog):
         records = cursor.fetchall()
         self.table.setRowCount(len(records))
         for i, record in enumerate(records):
-            for j, value in enumerate(record):
-                self.table.setItem(i, j, QTableWidgetItem(str(value)))
+            self.table.setItem(i, 0, QTableWidgetItem(str(record[0])))
+            self.table.setItem(i, 1, QTableWidgetItem(str(record[3])))
+            self.table.setItem(i, 2, QTableWidgetItem(str(record[4])))
+            self.table.setItem(i, 3, QTableWidgetItem(str(record[5])))
+            self.table.setItem(i, 4, QTableWidgetItem(str(record[6])))
+            self.table.setItem(i, 5, QTableWidgetItem(str(record[7])))
+            self.table.setItem(i, 6, QTableWidgetItem(str(record[8])))
+            self.table.setItem(i, 7, QTableWidgetItem(str(record[9])))
         self.table.resizeColumnsToContents()  # Adjust column width to fit content
     
     def save_comparison_value(self):
@@ -111,21 +131,24 @@ class SerialReader(QObject):
         self.barcode_scanner = barcode_scanner
     def read_serial_data(self):
         buffer = ""
-        while True:
-            sleep(0.1)
-            if self.barcode_scanner.connection and self.barcode_scanner.connection.is_open:
-                try:
-                    while self.barcode_scanner.connection.in_waiting > 0:
-                        data = self.barcode_scanner.connection.read(self.barcode_scanner.connection.in_waiting).decode(errors="ignore")
-                        if data:
-                            print(data)
-                            buffer += data
-                            while '\r' in buffer or '\n' in buffer:
-                                line, buffer = buffer.split("\n", 1) if "\n" in buffer else buffer.split("\r", 1)
-                                self.data_received.emit(line.strip())
-                except serial.SerialException as e:
-                    print(f"Error reading from serial port: {e}")
-                    break
+        try:
+            while True:
+                sleep(0.1)
+                if self.barcode_scanner.connection and self.barcode_scanner.connection.is_open:
+                    try:
+                        while self.barcode_scanner.connection.in_waiting > 0:
+                            data = self.barcode_scanner.connection.read(self.barcode_scanner.connection.in_waiting).decode(errors="ignore")
+                            if data:
+                                print(data)
+                                buffer += data
+                                while '\r' in buffer or '\n' in buffer:
+                                    line, buffer = buffer.split("\n", 1) if "\n" in buffer else buffer.split("\r", 1)
+                                    self.data_received.emit(line.strip())
+                    except serial.SerialException as e:
+                        print(f"Error reading from serial port: {e}")
+                        break
+        except Exception as e:
+            print(e)
 
 class MainWindow(QtBaseClass, Ui_MainWindow):
     def __init__(self):
@@ -174,7 +197,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         
         self.inspect_button.clicked.connect(self.show_inspection_dialog)
 
-        QTableWidget.setColumnWidth(self.result_table, 0, 5)
+        QTableWidget.setColumnWidth(self.result_table, 0, 20)
         QTableWidget.setColumnWidth(self.result_table, 1, 200)
         QTableWidget.setColumnWidth(self.result_table, 2, 100)
         QTableWidget.setColumnWidth(self.result_table, 3, 100)
@@ -211,7 +234,11 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.done_button.setEnabled(False)
         self.judgement_na()
     def verify_string(self, string):
-        if  self.work_order.text() =="":
+        # Check if PasswordDialog is open
+        if any(isinstance(widget, PasswordDialog) for widget in QApplication.instance().topLevelWidgets()):
+            return  # Do not verify string if PasswordDialog is open
+
+        if self.work_order.text() == "":
             self.verify_work_order(string)
         elif self.inner_code.text() == "":
             self.verify_inner_code(string)
@@ -236,9 +263,32 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.database_password = self.config.get('Database', 'database_password')
     
     def verify_serial_number(self, serial_number):
+        """
+        Verifies the provided serial number against the current work order and database records.
+        Args:
+            serial_number (str): The serial number to be verified.
+        Behavior:
+            - Checks if the serial number belongs to the current work order (`self.en_wo`).
+            - Queries the database to determine if the serial number already exists in the `i_packing` table.
+                - If a duplicate is found, handles the duplicate serial number.
+            - Queries the `i_output` and `i_klippel` tables for additional validation.
+            - Checks the count of items in the `i_packing` table with the same inner code.
+            - If the serial number is valid and matches the criteria:
+                - Inserts a new packing record.
+                - Updates the UI to indicate success.
+                - Clears data if the inner quantity reaches the specified limit.
+            - If the serial number is invalid or does not match:
+                - Displays an error message and updates the UI to indicate failure.
+        Exceptions:
+            - Catches and logs any exceptions that occur during the process.
+            - Displays an error message if the verification fails due to missing data or other issues.
+        Raises:
+            None
+        """
+      
         if serial_number[:5] != self.en_wo:
             self.judgement_ng()
-            QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not match with work order.")
+            QMessageBox.critical(self, "Error", "Xác minh số Serial không thành công. Hàng không thuộc work order này.")
             return
 
         try:
@@ -255,14 +305,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
             inner_quantity = self.cursor_spk.fetchone()[0]
 
-            if inner_quantity >= int(self.qty_inner.text()):
-                QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
-                self.done_button.setEnabled(True)
-                return
-
-            if inner_quantity == int(self.qty_inner.text()) - 1:
-                QMessageBox.information(self, "Notification", "Full carton.")
-                self.done_button.setEnabled(True)
+            
 
             if record and record[2]:
                 self.insert_packing_record(serial_number, klippel_record, inner_quantity)
@@ -272,28 +315,42 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 self.show_data()
                 self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
                 self.serial_number.setText(serial_number)
+                if inner_quantity >= int(self.qty_inner.text()) - 1:
+                    self.clear_data()
             else:
                 self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
+                QMessageBox.critical(self, "Error", "Xác minh Serial number không thành công. Serial number không khớp.")
         except Exception as e:
             print(e)
             self.judgement_ng()
-            QMessageBox.critical(self, "Error", "Serial number verification failed. Serial number not found.")
+            QMessageBox.critical(self, "Error", "Xác minh số Serial không thành công. Không tìm thấy dữ liệu")
 
     def handle_duplicate_serial(self, serial_number, record):
-        password_dialog = PasswordDialog(self, serial_number=serial_number, inner_code=self.inner_code.text(), position=str(record[0]))
+        password_dialog = PasswordDialog(
+            self,
+            serial_number=serial_number,
+            inner_code=self.inner_code.text(),
+            position=str(record[0]),
+            scanner=self.serial_reader  # Pass the scanner object
+        )
+
+        # Read password from config.ini
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        stored_password = config['Settings'].get('password', '27894869')  # Default to '27894869' if not set
+
         while True:
             if password_dialog.exec_() == QDialog.Accepted:
                 entered_password = password_dialog.get_password()
-                if entered_password in [datetime.now().strftime("%y%m%d"), '27894869']:
-                    QMessageBox.critical(self, "Error", "Serial number already scanned.")
+                if entered_password in [datetime.now().strftime("%y%m%d"), stored_password]:
+                    QMessageBox.critical(self, "Error", "Trùng số Serial.")
                     self.insert_duplicate_record(serial_number, record)
                     self.show_data()
                     break
                 else:
-                    QMessageBox.critical(self, "Error", "Incorrect password. Application will not proceed.")
+                    QMessageBox.critical(self, "Error", "Sai mật khẩu. Vui lòng nhập lại.")
             else:
-                QMessageBox.critical(self, "Error", "Password input required. Application will not proceed.")
+                QMessageBox.critical(self, "Error", "Yêu cầu nhập mật khẩu.")
 
     def insert_packing_record(self, serial_number, klippel_record, inner_quantity):
         self.cursor_spk.execute(
@@ -333,29 +390,31 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 self.model = record[9]
                 if str(self.model) != str(self.modelScan.currentText()):
                     self.judgement_ng()
-                    QMessageBox.critical(self, "Error", "Work order verification failed. Model not match.")
+                    QMessageBox.critical(self, "Error", "Xác minh Work Order không thành không. Model không khớp.")
                     return
                 self.judgement_ok()
                 self.work_order.setText(work_order)
             else:
                 self.work_order.setText("")
                 self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Work order verification failed. Work order not found.")
+                QMessageBox.critical(self, "Error", "Xác minh Work order không thành cômg. Không tìm thấy work order.")
         except Exception as e:
+            print(e)
             self.judgement_ng()
-            QMessageBox.critical(self, "Error", "Work order verification failed. Work order not found.")
+            QMessageBox.critical(self, "Error", "Xác minh Work order không thành cômg. Không tìm thấy work order.")
     
     def verify_inner_code(self, code):
+        print(code)
         code_parts = code.split('$')
         if len(code_parts) < 7:
             self.judgement_ng()
-            QMessageBox.critical(self, "Error", "Code verification failed. Not enough parts.")
+            QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")
             return False
         else:
             QR = verify.QRCode(code, self.sys_wo)
             if not QR.is_valid_code():
                 self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Code verification failed. Invalid inner code.")            
+                QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")            
                 return
             else:
                 self.qty_inner.setText(QR.quantity)
@@ -363,7 +422,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
     
     def verify_2ndinner_code(self, code):
         if code != self.inner_code.text():
-            QMessageBox.critical(self, "Error", "Code verification failed. Inner code not match.")
+            QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không trùng nhau")
             return
         else:
             self.dateScan.setEnabled(False)
@@ -384,10 +443,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.cursor_spk.execute("SELECT * FROM i_packing WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
             records_today = self.cursor_spk.fetchall()
             
-            self.cursor_spk.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
-            duplicate_records_today = self.cursor_spk.fetchall()
-            
-            total_ng_today = sum(1 for record in records_today if not record[8]) + len(duplicate_records_today)
+        
+            total_ng_today = sum(1 for record in records_today if not record[8])
             
             self.total_today.setText(str(len(records_today) + total_ng_today))
             self.ok_today.setText(str(sum(1 for record in records_today if record[8])))
@@ -412,15 +469,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.result_table.setItem(i, 5, QTableWidgetItem(record[5]))
         
         
-        self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
-        inner_quantity = self.cursor_spk.fetchone()[0]
-        if inner_quantity >= int(self.qty_inner.text()):
-            QMessageBox.critical(self, "Error", "Carton is already full. Cannot insert more.")
-            self.done_button.setEnabled(True)
-            return
-        # if inner_quantity == int(self.qty_inner.text()) - 1:
-        #     QMessageBox.information(self, "Notification", "Full carton.")
-        #     self.done_button.setEnabled(True)
+        
     def ok_item(self):
         ok_item = QTableWidgetItem("OK")
         ok_item.setData(Qt.BackgroundRole, QtGui.QColor(0, 200, 0))

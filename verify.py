@@ -5,11 +5,8 @@ class QRCode:
         
         
         self.work_order = work_order
-<<<<<<< HEAD
-        self.code = code.replace(" ","")
-=======
-        self.code = code.replace(" ", "")
->>>>>>> 7b050c155b08a7f869085a4d4f1030516cc43257
+        #self.code = code.replace(" ","")
+        self.code = code
         self.config = configparser.ConfigParser()
         self.config.read('config.ini')
         self.vendor_code = self.config.get('Settings', 'vendor_code')
