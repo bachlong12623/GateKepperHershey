@@ -319,14 +319,17 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             
 
             if record and record[2]:
+                if inner_quantity >= int(self.innner_quantity):
+                    self.clear_data()
+                    return
                 self.insert_packing_record(serial_number, klippel_record, inner_quantity)
                 self.judgement_na()
-                sleep(0.2)
+                sleep(0.1)
                 self.judgement_ok()
                 self.show_data()
                 self.serial_number.setStyleSheet("background-color: rgb(0, 200, 0); color: rgb(255, 255, 255);")
                 self.serial_number.setText(serial_number)
-                if inner_quantity >= int(self.qty_inner.text()) - 1:
+                if inner_quantity >= int(self.innner_quantity)-1:
                     self.clear_data()
             else:
                 self.judgement_ng()
@@ -457,6 +460,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             
             self.qty_inner.setText(str(int(self.innner_quantity) - len(records)))
             self.qty_tray.setText(str(int(self.tray_quantity)-len(records)%int(self.tray_quantity)))
+            if(int(self.qty_tray.text()) > int(self.qty_inner.text())):
+                self.qty_tray.setText(self.qty_inner.text())
             total_ng_today = sum(1 for record in records_today if not record[8])
             
             self.total_today.setText(str(len(records_today) + total_ng_today))
@@ -469,9 +474,6 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             comparison_value = config['Settings'].getint('klippel_time', 4)  # Default to 4 if not set
         except Exception as e:
             print(e)
-        
-        
-      
         
         for i, record in enumerate(records):
             self.result_table.setItem(i, 0, QTableWidgetItem(str(record[0])))
