@@ -78,6 +78,16 @@ class BarcodeScanner:
             self.read_thread.join()
 
     def read_data(self):
+        """
+        Reads data from the serial connection, ensuring no characters are lost at the beginning.
+        This method continuously reads data from the serial port while the `reading` flag is set to True.
+        It handles incoming data in a buffer and processes complete lines separated by newline (`\n`) 
+        or carriage return (`\r`) characters. Each complete line is printed to the console.
+        Raises:
+            serial.SerialException: If an error occurs while reading from the serial port.
+        Attributes:
+            buffer (str): Temporary storage for incoming data until a complete line is received.
+        """
         """Đọc dữ liệu từ serial, đảm bảo không mất ký tự đầu tiên."""
         buffer = ""
         while self.reading:
