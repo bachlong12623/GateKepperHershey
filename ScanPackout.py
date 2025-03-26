@@ -187,7 +187,9 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.line.currentIndexChanged.connect(lambda: self.modelScan.setEnabled(True) if self.line.currentIndex() != -1 else self.modelScan.setEnabled(False))
 
         # Enable shift_scan when modelScan is chosen
-        self.modelScan.currentIndexChanged.connect(lambda: self.shift_scan.setEnabled(True) if self.modelScan.currentIndex() != -1 else self.shift_scan.setEnabled(False))
+        self.modelScan.currentIndexChanged.connect(self.on_model_change)
+
+        
         
         self.shift_scan.currentIndexChanged.connect(self.verify_combobox)
         self.done_button.clicked.connect(self.clear_data)
@@ -225,7 +227,16 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             print(e)
     def verify_combobox(self):
         pass
-    
+    def on_model_change(self):
+        if self.modelScan.currentIndex() != -1:
+            self.shift_scan.setEnabled(True)
+            # Read settings from config.ini when model changes
+            config = configparser.ConfigParser()
+            config.read('config.ini')
+            self.tray_quantity = config[str(self.modelScan.currentText())]['tray_quantity']
+            self.qty_tray.setText(self.tray_quantity)
+        else:
+            self.shift_scan.setEnabled(False)
     def clear_data(self):
         self.inner_code.setText("")
         self.second_inner_code.setText("")
@@ -417,6 +428,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")            
                 return
             else:
+                self.innner_quantity = QR.quantity
                 self.qty_inner.setText(QR.quantity)
                 self.inner_code.setText(code)
     
@@ -443,7 +455,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.cursor_spk.execute("SELECT * FROM i_packing WHERE scan_time >= %s ORDER BY id DESC", (today_str,))
             records_today = self.cursor_spk.fetchall()
             
-        
+            self.qty_inner.setText(str(int(self.innner_quantity) - len(records)))
+            self.qty_tray.setText(str(int(self.tray_quantity)-len(records)%int(self.tray_quantity)))
             total_ng_today = sum(1 for record in records_today if not record[8])
             
             self.total_today.setText(str(len(records_today) + total_ng_today))

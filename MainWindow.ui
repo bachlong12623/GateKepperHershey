@@ -417,7 +417,7 @@ color: rgb(0, 0, 0);</string>
             </widget>
            </item>
            <item>
-            <widget class="QLabel" name="qty_inner_5">
+            <widget class="QLabel" name="qty_tray">
              <property name="minimumSize">
               <size>
                <width>50</width>
@@ -756,7 +756,7 @@ color: rgb(0, 0, 0);</string>
     </column>
     <column>
      <property name="text">
-      <string>Serial Number</string>
+      <string>Số Serial</string>
      </property>
     </column>
     <column>
