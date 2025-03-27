@@ -88,14 +88,14 @@ class InspectionDialog(QDialog):
         super(InspectionDialog, self).__init__(parent)
         uic.loadUi("InspectionDialog.ui", self)
         
-        # Read comparison value from config.ini
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        comparison_value = int(config['Settings'].get('klippel_time', 3))  # Default to 3 if not set
+        # # Read comparison value from config.ini
+        # config = configparser.ConfigParser()
+        # config.read('config.ini')
+        # comparison_value = int(config['Settings'].get('klippel_time', 3))  # Default to 3 if not set
         
-        self.comparison_spinbox.setValue(comparison_value)
+        # self.comparison_spinbox.setValue(comparison_value)
         
-        self.save_button.clicked.connect(self.save_comparison_value)
+        # self.save_button.clicked.connect(self.save_comparison_value)
         
     def fetch_data(self, cursor):
         cursor.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (datetime.now().strftime("%Y-%m-%d"),))
@@ -112,16 +112,16 @@ class InspectionDialog(QDialog):
             self.table.setItem(i, 7, QTableWidgetItem(str(record[9])))
         self.table.resizeColumnsToContents()  # Adjust column width to fit content
     
-    def save_comparison_value(self):
-        comparison_value = self.comparison_spinbox.value()
-        config = configparser.ConfigParser()
-        config.read('config.ini')
-        if 'Settings' not in config:
-            config['Settings'] = {}
-        config['Settings']['klippel_time'] = str(comparison_value)
-        with open('config.ini', 'w') as configfile:
-            config.write(configfile)
-        self.accept()
+    # def save_comparison_value(self):
+    #     comparison_value = self.comparison_spinbox.value()
+    #     config = configparser.ConfigParser()
+    #     config.read('config.ini')
+    #     if 'Settings' not in config:
+    #         config['Settings'] = {}
+    #     config['Settings']['klippel_time'] = str(comparison_value)
+    #     with open('config.ini', 'w') as configfile:
+    #         config.write(configfile)
+    #     self.accept()
 
 class SerialReader(QObject):
     data_received = pyqtSignal(str)
@@ -199,7 +199,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         
         self.inspect_button.clicked.connect(self.show_inspection_dialog)
 
-        QTableWidget.setColumnWidth(self.result_table, 0, 20)
+        QTableWidget.setColumnWidth(self.result_table, 0, 50)
         QTableWidget.setColumnWidth(self.result_table, 1, 200)
         QTableWidget.setColumnWidth(self.result_table, 2, 100)
         QTableWidget.setColumnWidth(self.result_table, 3, 100)
@@ -368,7 +368,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         # Read password from config.ini
         config = configparser.ConfigParser()
         config.read('config.ini')
-        stored_password = config['Settings'].get('password', '27894869')  # Default to '27894869' if not set
+        stored_password = config['Settings'].get('password')  
 
         while True:
             if password_dialog.exec_() == QDialog.Accepted:

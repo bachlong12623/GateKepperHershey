@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1321</width>
-    <height>1026</height>
+    <width>1279</width>
+    <height>1024</height>
    </rect>
   </property>
   <property name="font">
@@ -30,7 +30,7 @@
      <rect>
       <x>9</x>
       <y>10</y>
-      <width>1301</width>
+      <width>1261</width>
       <height>162</height>
      </rect>
     </property>
@@ -42,7 +42,7 @@
          <item row="0" column="1">
           <widget class="QLabel" name="label_2">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -67,7 +67,7 @@
          <item row="2" column="1">
           <widget class="QLabel" name="label_4">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -92,7 +92,7 @@
          <item row="2" column="0">
           <widget class="QLabel" name="label_3">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -117,7 +117,7 @@
          <item row="0" column="0">
           <widget class="QLabel" name="label">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="sizePolicy">
             <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
@@ -205,7 +205,7 @@
             </font>
            </property>
            <property name="styleSheet">
-            <string notr="true">color: rgb(255, 170, 0);</string>
+            <string notr="true">color: rgb(0, 0, 127);</string>
            </property>
            <property name="text">
             <string>Work order:</string>
@@ -222,7 +222,7 @@
            </property>
            <property name="font">
             <font>
-             <pointsize>11</pointsize>
+             <pointsize>10</pointsize>
              <weight>75</weight>
              <bold>true</bold>
             </font>
@@ -239,40 +239,17 @@ color: rgb(0, 0, 0);</string>
          <item>
           <layout class="QHBoxLayout" name="horizontalLayout">
            <item>
-            <widget class="QLabel" name="label_5">
-             <property name="maximumSize">
-              <size>
-               <width>32</width>
-               <height>16777215</height>
-              </size>
-             </property>
+            <widget class="QLabel" name="label_10">
              <property name="font">
               <font>
                <family>Times New Roman</family>
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">color: rgb(0, 0, 255);</string>
+              <string notr="true">color: rgb(0, 0, 127);</string>
              </property>
              <property name="text">
-              <string>Label 1:</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_6">
-             <property name="text">
-              <string>Q'ty Inner:</string>
-             </property>
-             <property name="alignment">
-              <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="lb_lot_qty">
-             <property name="text">
-              <string/>
+              <string>Label 1</string>
              </property>
             </widget>
            </item>
@@ -288,7 +265,7 @@ color: rgb(0, 0, 0);</string>
            </property>
            <property name="font">
             <font>
-             <pointsize>11</pointsize>
+             <pointsize>10</pointsize>
              <weight>75</weight>
              <bold>true</bold>
             </font>
@@ -312,7 +289,7 @@ color: rgb(0, 0, 0);</string>
               </font>
              </property>
              <property name="styleSheet">
-              <string notr="true">color: rgb(255, 170, 0);</string>
+              <string notr="true">color: rgb(0, 0, 127);</string>
              </property>
              <property name="text">
               <string>Label 2</string>
@@ -331,7 +308,7 @@ color: rgb(0, 0, 0);</string>
            </property>
            <property name="font">
             <font>
-             <pointsize>11</pointsize>
+             <pointsize>10</pointsize>
              <weight>75</weight>
              <bold>true</bold>
             </font>
@@ -477,7 +454,10 @@ color: rgb(0, 0, 0);</string>
              </property>
              <property name="font">
               <font>
-               <pointsize>25</pointsize>
+               <family>Times New Roman</family>
+               <pointsize>16</pointsize>
+               <weight>75</weight>
+               <bold>true</bold>
               </font>
              </property>
              <property name="styleSheet">
@@ -717,9 +697,9 @@ color: rgb(0, 0, 0);</string>
    <widget class="QTableWidget" name="result_table">
     <property name="geometry">
      <rect>
-      <x>10</x>
+      <x>20</x>
       <y>180</y>
-      <width>1301</width>
+      <width>1261</width>
       <height>711</height>
      </rect>
     </property>
@@ -829,8 +809,8 @@ color: rgb(255, 255, 255);</string>
    <widget class="QFrame" name="frame">
     <property name="geometry">
      <rect>
-      <x>9</x>
-      <y>179</y>
+      <x>0</x>
+      <y>180</y>
       <width>21</width>
       <height>711</height>
      </rect>
