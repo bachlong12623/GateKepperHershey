@@ -12,7 +12,7 @@ from datetime import datetime
 import serial
 import verify as verify
 import threading
-from serial_port import BarcodeScanner, auto_detect_port  # Import the BarcodeScanner class and auto_detect_port function
+from serial_port import BarcodeScanner, auto_detect_port
 
 Ui_MainWindow, QtBaseClass = uic.loadUiType("MainWindow.ui")
 
@@ -73,7 +73,7 @@ class PasswordDialog(QDialog):
 
     def closeEvent(self, event):
         # Prevent closing the dialog without entering the correct password
-        QMessageBox.critical(self, "Error", "Password input required. Application will not proceed.")
+        QMessageBox.critical(self, "Error", "Vui lòng nhập mật khẻu.")
         event.ignore()
 
     def blink_background(self):
