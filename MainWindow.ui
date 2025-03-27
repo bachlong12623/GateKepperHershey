@@ -694,7 +694,7 @@ color: rgb(0, 0, 0);</string>
          <item>
           <widget class="QPushButton" name="done_button">
            <property name="enabled">
-            <bool>false</bool>
+            <bool>true</bool>
            </property>
            <property name="text">
             <string>Xong</string>

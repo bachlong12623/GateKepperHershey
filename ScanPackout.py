@@ -192,7 +192,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         
         
         self.shift_scan.currentIndexChanged.connect(self.verify_combobox)
-        self.done_button.clicked.connect(self.clear_data)
+        self.done_button.clicked.connect(self.clear_shift)
         
         # Set table column width
         self.judgement_na()
@@ -227,6 +227,23 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             print(e)
     def verify_combobox(self):
         pass
+    def clear_shift(self):
+        self.work_order.setText("")
+        self.inner_code.setText("")
+        self.second_inner_code.setText("")
+        self.serial_number.setText("")
+        self.result_table.setRowCount(0)
+        self.judgement_na()
+        self.line.setCurrentIndex(-1)
+        self.modelScan.setCurrentIndex(-1)
+        self.shift_scan.setCurrentIndex(-1)
+        self.dateScan.setDate(QDate.currentDate())
+        self.dateScan.setEnabled(True)
+        self.line.setEnabled(False)
+        self.modelScan.setEnabled(False)
+        self.shift_scan.setEnabled(False)
+        self.qty_inner.setText("-")
+        self.qty_tray.setText("-")
     def on_model_change(self):
         if self.modelScan.currentIndex() != -1:
             self.shift_scan.setEnabled(True)
