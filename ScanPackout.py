@@ -6,6 +6,7 @@ from PyQt5.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QMessa
 from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal, QObject, QThread
 from PyQt5 import QtGui
 import sys
+import pdb
 import psycopg2
 from datetime import datetime
 
@@ -23,7 +24,6 @@ class PasswordDialog(QDialog):
         self.setWindowTitle("Enter Password")
         self.setModal(True)
         self.setFixedSize(700, 500)  # Increase the size of the dialog
-
         self.scanner = scanner  # Pass the scanner object to the dialog
 
         layout = QVBoxLayout()
@@ -425,6 +425,18 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                     return
                 self.judgement_ok()
                 self.work_order.setText(work_order)
+                #select newest record from i_packing
+                self.cursor_spk.execute("SELECT * FROM i_packing ORDER BY scan_time DESC LIMIT 1")
+                record = self.cursor_spk.fetchone()
+                inner_code = record[5]
+                inner_quantity = inner_code.split('$')[-1]
+                print(inner_quantity)
+                self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (inner_code,))
+                count = self.cursor_spk.fetchone()[0]
+                print(count)
+                if count < int(inner_quantity):
+                    self.verify_inner_code(inner_code)
+                    self.verify_2ndinner_code(inner_code)
             else:
                 self.work_order.setText("")
                 self.judgement_ng()

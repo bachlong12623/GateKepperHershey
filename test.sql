@@ -67,3 +67,6 @@ ALTER TABLE public.wo
 
 ----------------------------------------------------------------------------------------------
 -- add datecode column to i_output table
+
+ALTER TABLE public.p_output
+    ADD COLUMN datecode character varying(6);
