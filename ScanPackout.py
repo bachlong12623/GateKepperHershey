@@ -6,7 +6,6 @@ from PyQt5.QtWidgets import QApplication, QTableWidget, QTableWidgetItem, QMessa
 from PyQt5.QtCore import Qt, QDate, QTimer, pyqtSignal, QObject, QThread
 from PyQt5 import QtGui
 import sys
-import pdb
 import psycopg2
 from datetime import datetime
 
@@ -88,16 +87,8 @@ class InspectionDialog(QDialog):
         super(InspectionDialog, self).__init__(parent)
         uic.loadUi("InspectionDialog.ui", self)
         
-        # # Read comparison value from config.ini
-        # config = configparser.ConfigParser()
-        # config.read('config.ini')
-        # comparison_value = int(config['Settings'].get('klippel_time', 3))  # Default to 3 if not set
-        
-        # self.comparison_spinbox.setValue(comparison_value)
-        
-        # self.save_button.clicked.connect(self.save_comparison_value)
-        
     def fetch_data(self, cursor):
+        self.label.setText("Danh sách sản phẩm NG trùng Serial")
         cursor.execute("SELECT * FROM i_packing_duplicate WHERE scan_time >= %s ORDER BY id DESC", (datetime.now().strftime("%Y-%m-%d"),))
         records = cursor.fetchall()
         self.table.setRowCount(len(records))
@@ -112,16 +103,22 @@ class InspectionDialog(QDialog):
             self.table.setItem(i, 7, QTableWidgetItem(str(record[9])))
         self.table.resizeColumnsToContents()  # Adjust column width to fit content
     
-    # def save_comparison_value(self):
-    #     comparison_value = self.comparison_spinbox.value()
-    #     config = configparser.ConfigParser()
-    #     config.read('config.ini')
-    #     if 'Settings' not in config:
-    #         config['Settings'] = {}
-    #     config['Settings']['klippel_time'] = str(comparison_value)
-    #     with open('config.ini', 'w') as configfile:
-    #         config.write(configfile)
-    #     self.accept()
+    def show_ng(self, cursor):
+        self.label.setText("Danh sách sản phẩm NG")
+        """Fetch and display NG records."""
+        cursor.execute("SELECT * FROM i_packing WHERE result = FALSE ORDER BY id DESC")
+        records = cursor.fetchall()
+        self.table.setRowCount(len(records))
+        for i, record in enumerate(records):
+            self.table.setItem(i, 0, QTableWidgetItem(str(record[0])))
+            self.table.setItem(i, 1, QTableWidgetItem(str(record[3])))
+            self.table.setItem(i, 2, QTableWidgetItem(str(record[4])))
+            self.table.setItem(i, 3, QTableWidgetItem(str(record[5])))
+            self.table.setItem(i, 4, QTableWidgetItem(str(record[6])))
+            self.table.setItem(i, 5, QTableWidgetItem(str(record[7])))
+            self.table.setItem(i, 6, QTableWidgetItem(str(record[8])))
+            self.table.setItem(i, 7, QTableWidgetItem(str(record[9])))
+        self.table.resizeColumnsToContents()  # Adjust column width to fit content
 
 class SerialReader(QObject):
     data_received = pyqtSignal(str)
@@ -197,7 +194,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         # Set table column width
         self.judgement_na()
         
-        self.inspect_button.clicked.connect(self.show_inspection_dialog)
+        self.inspect_button.clicked.connect(self.show_duplicate)
+        self.show_ng_button.clicked.connect(self.show_ng_dialog)
 
         QTableWidget.setColumnWidth(self.result_table, 0, 50)
         QTableWidget.setColumnWidth(self.result_table, 1, 200)
@@ -274,9 +272,13 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.verify_2ndinner_code(string)
         else:
             self.verify_serial_number(string)
-    def show_inspection_dialog(self):        
+    def show_duplicate(self):        
         inspection_dialog = InspectionDialog(self)
         inspection_dialog.fetch_data(self.cursor_spk)
+        inspection_dialog.exec_()
+    def  show_ng_dialog(self):
+        inspection_dialog = InspectionDialog(self)
+        inspection_dialog.show_ng(self.cursor_spk)
         inspection_dialog.exec_()
 
     def read_settings(self):
@@ -507,8 +509,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         for i, record in enumerate(records):
             self.result_table.setItem(i, 0, QTableWidgetItem(str(record[0])))
             self.result_table.setItem(i, 1, QTableWidgetItem(str(record[6])))
-            self.result_table.setItem(i, 2, self.ok_item() if record[8] else self.ng_item())
-            self.result_table.setItem(i, 3, self.ok_item() if record[7] <= comparison_value else self.ng_item())
+            self.result_table.setItem(i, 2, self.ok_item() if record[7] <= comparison_value else self.ng_item())
+            self.result_table.setItem(i, 3, self.ok_item() if record[8] else self.ng_item())
             self.result_table.setItem(i, 4, QTableWidgetItem(record[9].strftime("%Y-%m-%d %H:%M:%S")))
             self.result_table.setItem(i, 5, QTableWidgetItem(record[5]))
         
