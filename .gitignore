@@ -1,2 +1,5 @@
 # Ignore configuration files
 config.ini
+
+# Ignore virtual environment folder
+myenv/
