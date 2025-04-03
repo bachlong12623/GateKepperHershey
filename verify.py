@@ -56,6 +56,7 @@ class QRCode:
         if not self.is_valid_datecode(code_parts[5]):
             print('Datecode is not valid')
             return False
+        self.date_code = code_parts[5]
         self.quantity = code_parts[6]
         return True
 
@@ -65,7 +66,6 @@ class QRCode:
 
 
     def is_valid_datecode(self, code_part):
-        print(code_part)
         """
         Check if a given string is a valid datecode or not
 
