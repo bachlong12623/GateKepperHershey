@@ -33,6 +33,15 @@ class SQL:
         """
         self.cursor.execute(query, (id, time, result))
         self.conn.commit()
+    
+    def insert_p_output(self, id, time):
+        query = """
+        INSERT INTO public.p_output(
+            id, "time", datecode)
+        VALUES (%s, %s, '5V411A');
+        """
+        self.cursor.execute(query, (id, time))
+        self.conn.commit()
 
     def close(self):
         self.cursor.close()
@@ -49,8 +58,9 @@ if __name__ == "__main__":
     end = 99999  # Adjust this range as needed
 
     for id in generate_ids(prefix, start, end):
-        sql.insert_klippel(id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), True, True, True, True, True, True, 1)
-        sql.insert_output(id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 1)
+        # sql.insert_klippel(id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), True, True, True, True, True, True, 1)
+        # sql.insert_output(id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"), 1)
+        sql.insert_p_output(id, datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
         print(f"Inserted {id} at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 
     sql.close()

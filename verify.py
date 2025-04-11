@@ -28,42 +28,43 @@ class QRCode:
             True if the code is valid, False otherwise
         """
         code_parts = self.code.split('$')
-        
-        # Verify 1st part of the code
-        if not self.is_valid_vendor_code(code_parts[0][:-10]):
-            print('Vendor code is not valid')
+        try:
+            # Verify 1st part of the code
+            if not self.is_valid_vendor_code(code_parts[0]):
+                print('Vendor code is not valid')
+                return False
+            # if not self.verify_id_inner_code(code_parts[0]):
+            #     print('ID part is not valid')
+            #     return False
+            
+            # Verify 2nd part of the code
+            if not self.is_valid_vendor_code(code_parts[1]):
+                print('Vendor code is not valid')
+                return False
+            
+            # Verify 3rd part of the code
+            if not self.is_valid_vendor_name(code_parts[2]):
+                print('Vendor name is not valid')
+                return False
+            
+            # Verify 4th part of the code
+            if not self.is_valid_pn(code_parts[3]):
+                print('Part number is not valid')
+                print(code_parts[3])
+                return False
+            # Verify 5th part of the code
+            if not self.is_valid_datecode(code_parts[5]):
+                print('Datecode is not valid')
+                return False
+            self.date_code = code_parts[5]
+            self.quantity = code_parts[6]
+        except IndexError:
+            print('Code is not valid')
             return False
-        if not self.verify_id_inner_code(code_parts[0]):
-            print('ID part is not valid')
+        except ValueError:
+            print('Code is not valid')
             return False
-        
-        # Verify 2nd part of the code
-        if not self.is_valid_vendor_code(code_parts[1]):
-            print('Vendor code is not valid')
-            return False
-        
-        # Verify 3rd part of the code
-        if not self.is_valid_vendor_name(code_parts[2]):
-            print('Vendor name is not valid')
-            return False
-        
-        # Verify 4th part of the code
-        if not self.is_valid_pn(code_parts[3]):
-            print('Part number is not valid')
-            print(code_parts[3])
-            return False
-        # Verify 5th part of the code
-        if not self.is_valid_datecode(code_parts[5]):
-            print('Datecode is not valid')
-            return False
-        self.date_code = code_parts[5]
-        self.quantity = code_parts[6]
         return True
-
-
-
-
-
 
     def is_valid_datecode(self, code_part):
         """
@@ -169,7 +170,7 @@ class QRCode:
         bool
             True if the code part matches the vendor code, False otherwise
         """
-        return code_part == self.vendor_code
+        return code_part[:7] == self.vendor_code
 
     def verify_id_inner_code(self, code_part):
         """

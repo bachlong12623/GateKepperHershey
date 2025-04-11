@@ -9,6 +9,7 @@ import sys
 import psycopg2
 from datetime import datetime
 
+import pdb
 import serial
 import verify as verify
 import threading
@@ -258,7 +259,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.serial_number.setText("")
         self.result_table.setRowCount(0)
         self.done_button.setEnabled(False)
-        self.judgement_na()
+        self.judgement_na()       
     def verify_string(self, string):
         # Check if PasswordDialog is open
         if any(isinstance(widget, PasswordDialog) for widget in QApplication.instance().topLevelWidgets()):
@@ -332,20 +333,22 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             record = self.cursor_spk.fetchone()
             self.cursor_spk.execute("SELECT * FROM i_klippel WHERE id = %s", (serial_number,))
             klippel_record = self.cursor_spk.fetchone()
-            self.cursor_spk.execute("SELECT COUNT(*) FROM p_output WHERE serial = %s", (serial_number,))
-            date_code = self.cursor_spk.fetchone()[2]
-            self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
-            inner_quantity = self.cursor_spk.fetchone()[0]
+            self.cursor_spk.execute("SELECT * FROM p_output WHERE id = %s", (serial_number,))
+            p_output_record = self.cursor_spk.fetchone()
+            if p_output_record:
+                date_code = p_output_record[2]
+                self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (self.inner_code.text(),))
+                inner_quantity = self.cursor_spk.fetchone()[0]
 
-            if not (date_code[0] == self.inner_date_code[3] and 
-                    date_code[1] == 'V' and 
-                    {'1': '01', '2': '02', '3': '03', '4': '04', '5': '05', 
-                     '6': '06', '7': '07', '8': '08', '9': '09', 'O': '10', 
-                     'N': '11', 'D': '12'}.get(date_code[2], '') == self.inner_date_code[4:6] and 
-                    date_code[3:5] == self.inner_date_code[6:8]):
-                self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Xác minh Serial number không thành công. Date code không khớp.")
-                return
+                if not (date_code[0] == self.inner_date_code[3] and 
+                        date_code[1] == 'V' and 
+                        {'1': '01', '2': '02', '3': '03', '4': '04', '5': '05', 
+                         '6': '06', '7': '07', '8': '08', '9': '09', 'O': '10', 
+                         'N': '11', 'D': '12'}.get(date_code[2], '') == self.inner_date_code[4:6] and 
+                        date_code[3:5] == self.inner_date_code[6:8]):
+                    self.judgement_ng()
+                    QMessageBox.critical(self, "Error", "Xác minh Serial number không thành công. Date code không khớp.")
+                    return
 
             if record and record[2]:
                 if inner_quantity >= int(self.innner_quantity):
@@ -440,15 +443,14 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 #select newest record from i_packing
                 self.cursor_spk.execute("SELECT * FROM i_packing ORDER BY scan_time DESC LIMIT 1")
                 record = self.cursor_spk.fetchone()
-                inner_code = record[5]
-                inner_quantity = inner_code.split('$')[-1]
-                print(inner_quantity)
-                self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (inner_code,))
-                count = self.cursor_spk.fetchone()[0]
-                print(count)
-                if count < int(inner_quantity):
-                    self.verify_inner_code(inner_code)
-                    self.verify_2ndinner_code(inner_code)
+                if record:
+                    inner_code = record[5]
+                    inner_quantity = inner_code.split('$')[-1]
+                    self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (inner_code,))
+                    count = self.cursor_spk.fetchone()[0]
+                    if count < int(inner_quantity):
+                        self.verify_inner_code(inner_code)
+                        self.verify_2ndinner_code(inner_code)
             else:
                 self.work_order.setText("")
                 self.judgement_ng()
@@ -459,11 +461,10 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             QMessageBox.critical(self, "Error", "Xác minh Work order không thành cômg. Không tìm thấy work order.")
     
     def verify_inner_code(self, code):
-        print(code)
         code_parts = code.split('$')
         if len(code_parts) < 7:
             self.judgement_ng()
-            QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")
+            QMessageBox.critical(self, "Error", "Xác minh code thất bại. Sai Format Inner.")
             return False
         else:
             QR = verify.QRCode(code, self.sys_wo)
@@ -472,11 +473,17 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")            
                 return
             else:
+                self.verify_vendercode(code_parts[1])
                 self.innner_quantity = QR.quantity
                 self.inner_date_code = QR.date_code
                 self.qty_inner.setText(QR.quantity)
                 self.inner_code.setText(code)
-    
+    def verify_vendercode(self, code):
+        code = code[7:]
+        self.cursor_spk.execute("SELECT * FROM i_packing WHERE inner_code LIKE %s", (code + '%',))
+        record = self.cursor_spk.fetchall()
+        if record:
+            print(len(record))
     def verify_2ndinner_code(self, code):
         if code != self.inner_code.text():
             QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không trùng nhau")
