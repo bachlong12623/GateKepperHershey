@@ -292,6 +292,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.database_spk = self.config.get('Database', 'database_spk')
         self.database_user = self.config.get('Database', 'database_user')
         self.database_password = self.config.get('Database', 'database_password')
+        self.line = self.config.get('Database', 'line')
+        self.model = self.config.get('Database', 'model')
     
     def verify_serial_number(self, serial_number):
         """
@@ -471,19 +473,31 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             if not QR.is_valid_code():
                 self.judgement_ng()
                 QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")            
-                return
+                return False
             else:
-                self.verify_vendercode(code_parts[1])
-                self.innner_quantity = QR.quantity
-                self.inner_date_code = QR.date_code
-                self.qty_inner.setText(QR.quantity)
-                self.inner_code.setText(code)
+                if self.verify_vendercode(code_parts[0]):
+                    self.innner_quantity = QR.quantity
+                    self.inner_date_code = QR.date_code
+                    self.qty_inner.setText(QR.quantity)
+                    self.inner_code.setText(code)
+                    return True
+                else:
+                    self.judgement_ng()
+                    self.cursor_spk.execute("SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (code_parts[0][7:],))
+                    record = self.cursor_spk.fetchall()
+                    if record:
+                        QMessageBox.critical(self, "Error", f"Xác minh code thất bại. Trùng mã Serial Innercode: {record[0][5]}")
+                    return False
     def verify_vendercode(self, code):
-        code = code[7:]
-        self.cursor_spk.execute("SELECT * FROM i_packing WHERE inner_code LIKE %s", (code + '%',))
+        code = code[7:]        
+        self.cursor_spk.execute("SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (code,))
         record = self.cursor_spk.fetchall()
         if record:
-            print(len(record))
+            product_quantity = len(record)
+            inner_quantity = record[0][5].split('$')[-1]
+            if product_quantity >= int(inner_quantity):
+                return False
+        return True
     def verify_2ndinner_code(self, code):
         if code != self.inner_code.text():
             QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không trùng nhau")
