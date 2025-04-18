@@ -63,6 +63,13 @@ class PasswordDialog(QDialog):
 
         self.scanned_password = ""
 
+        # Add flag to check if this is bypass mode
+        self.is_bypass_mode = serial_number == "" and inner_code == "" and position == ""
+
+        # Only show error info if not in bypass mode
+        if not self.is_bypass_mode:
+            self.info_label.setText(f"Serial đã bị trùng\nSerial Number: {serial_number}\nInner Code: {inner_code}\nVị trí: {position}")
+
     def handle_scanner_input(self, data):
         """Handle input from the scanner."""
         self.scanned_password = data.strip()
@@ -72,9 +79,12 @@ class PasswordDialog(QDialog):
         return self.scanned_password
 
     def closeEvent(self, event):
-        # Prevent closing the dialog without entering the correct password
-        QMessageBox.critical(self, "Error", "Vui lòng nhập mật khẻu.")
-        event.ignore()
+        # Allow closing if in bypass mode
+        if self.is_bypass_mode:
+            event.accept()
+        else:
+            QMessageBox.critical(self, "Error", "Vui lòng nhập mật khẩu.")
+            event.ignore()
 
     def blink_background(self):
         if self.blink_state:
@@ -176,6 +186,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.line.setCurrentIndex(-1)
         self.modelScan.setCurrentIndex(-1)
         self.shift_scan.setCurrentIndex(-1)
+        
+        self.bypass_vendorcode = False
 
 
         # Enable line when date is chosen
@@ -197,6 +209,10 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         
         self.inspect_button.clicked.connect(self.show_duplicate)
         self.show_ng_button.clicked.connect(self.show_ng_dialog)
+        
+        self.labelno1.mousePressEvent = self.on_labelno1_click
+
+       
 
         QTableWidget.setColumnWidth(self.result_table, 0, 50)
         QTableWidget.setColumnWidth(self.result_table, 1, 200)
@@ -226,6 +242,36 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             print(e)
     def verify_combobox(self):
         pass
+    
+    def on_labelno1_click(self, event):
+        password_dialog = PasswordDialog(
+            self, 
+            scanner=self.serial_reader,
+            # Set empty strings for other params since this is bypass mode
+            serial_number="",
+            inner_code="",
+            position=""
+        )
+        
+        # Update dialog appearance for bypass mode
+        password_dialog.setFixedSize(400, 300)  # Smaller size for bypass mode
+        password_dialog.info_label.setText("Mở chế độ bypass")
+        password_dialog.info_label.setStyleSheet("color: yellow; font-size: 24px;")
+        password_dialog.closeEvent = lambda x: x.accept()  # Allow closing
+
+        # Read password from config.ini
+        config = configparser.ConfigParser()
+        config.read('config.ini')
+        stored_password = config['Settings'].get('password')
+
+        if password_dialog.exec_() == QDialog.Accepted:
+            entered_password = password_dialog.get_password()
+            if entered_password in [datetime.now().strftime("%y%m%d"), stored_password]:
+                self.bypass_vendorcode = True
+                QMessageBox.information(self, "Success", "Bypass enabled.")
+            else:
+                QMessageBox.critical(self, "Error", "Incorrect password. Please try again.")
+    
     def clear_shift(self):
         self.work_order.setText("")
         self.inner_code.setText("")
@@ -258,8 +304,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.second_inner_code.setText("")
         self.serial_number.setText("")
         self.result_table.setRowCount(0)
-        self.done_button.setEnabled(False)
-        self.judgement_na()       
+        self.judgement_na()
+        self.bypass_vendorcode = False
     def verify_string(self, string):
         # Check if PasswordDialog is open
         if any(isinstance(widget, PasswordDialog) for widget in QApplication.instance().topLevelWidgets()):
@@ -292,8 +338,8 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
         self.database_spk = self.config.get('Database', 'database_spk')
         self.database_user = self.config.get('Database', 'database_user')
         self.database_password = self.config.get('Database', 'database_password')
-        self.line = self.config.get('Database', 'line')
-        self.model = self.config.get('Database', 'model')
+        # self.line = self.config.get('Database', 'line')
+        # self.model = self.config.get('Database', 'model')
     
     def verify_serial_number(self, serial_number):
         """
@@ -443,16 +489,20 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
                 self.judgement_ok()
                 self.work_order.setText(work_order)
                 #select newest record from i_packing
-                self.cursor_spk.execute("SELECT * FROM i_packing ORDER BY scan_time DESC LIMIT 1")
+                self.cursor_spk.execute("SELECT * FROM i_packing WHERE LEFT(serial, 5) = %s ORDER BY scan_time DESC LIMIT 1", (self.en_wo,))
                 record = self.cursor_spk.fetchone()
                 if record:
                     inner_code = record[5]
+                    print(inner_code)
+                    print(record[6])
                     inner_quantity = inner_code.split('$')[-1]
                     self.cursor_spk.execute("SELECT COUNT(*) FROM i_packing WHERE inner_code = %s", (inner_code,))
                     count = self.cursor_spk.fetchone()[0]
                     if count < int(inner_quantity):
-                        self.verify_inner_code(inner_code)
-                        self.verify_2ndinner_code(inner_code)
+                        if(self.verify_inner_code(inner_code)):
+                            self.verify_2ndinner_code(inner_code)
+                self.load_innerID()
+
             else:
                 self.work_order.setText("")
                 self.judgement_ng()
@@ -461,43 +511,81 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             print(e)
             self.judgement_ng()
             QMessageBox.critical(self, "Error", "Xác minh Work order không thành cômg. Không tìm thấy work order.")
-    
+    def load_innerID(self):
+        self.cursor_spk.execute("""
+                                        SELECT *
+                                        FROM i_packing
+                                        WHERE SUBSTRING(inner_code FROM 8 FOR 10) ~ '^[0-9]+$'
+                                        ORDER BY CAST(SUBSTRING(inner_code FROM 8 FOR 10) AS BIGINT) DESC
+                                        LIMIT 1;
+                                        """)
+        record = self.cursor_spk.fetchone()
+        id = record[5][7:17]
+        self.inner_id.setText(f'Inner ID: {id}')
     def verify_inner_code(self, code):
         code_parts = code.split('$')
         if len(code_parts) < 7:
             self.judgement_ng()
             QMessageBox.critical(self, "Error", "Xác minh code thất bại. Sai Format Inner.")
             return False
-        else:
-            QR = verify.QRCode(code, self.sys_wo)
-            if not QR.is_valid_code():
-                self.judgement_ng()
-                QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")            
-                return False
-            else:
-                if self.verify_vendercode(code_parts[0]):
-                    self.innner_quantity = QR.quantity
-                    self.inner_date_code = QR.date_code
-                    self.qty_inner.setText(QR.quantity)
-                    self.inner_code.setText(code)
-                    return True
-                else:
-                    self.judgement_ng()
-                    self.cursor_spk.execute("SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (code_parts[0][7:],))
-                    record = self.cursor_spk.fetchall()
-                    if record:
-                        QMessageBox.critical(self, "Error", f"Xác minh code thất bại. Trùng mã Serial Innercode: {record[0][5]}")
-                    return False
-    def verify_vendercode(self, code):
-        code = code[7:]        
-        self.cursor_spk.execute("SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (code,))
+
+        QR = verify.QRCode(code, self.sys_wo)
+        if not QR.is_valid_code():
+            self.judgement_ng()
+            QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không đúng.")
+            return False
+
+        if self.verify_vendercode(code_parts[0]):
+            # self.innner_quantity = QR.quantity
+            self.inner_quantity = 160
+            self.inner_date_code = QR.date_code
+            self.qty_inner.setText(QR.quantity)
+            self.inner_code.setText(code)
+            return True
+
+        self.judgement_ng()
+        self.cursor_spk.execute(
+            "SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", 
+            (code_parts[0][7:],)
+        )
         record = self.cursor_spk.fetchall()
         if record:
-            product_quantity = len(record)
-            inner_quantity = record[0][5].split('$')[-1]
+            QMessageBox.critical(
+                self, "Error", f"Xác minh Inner code thất bại. Trùng mã Serial Innercode: {record[0][5]}"
+            )
+        return False
+    def verify_vendercode(self, code):
+        if self.bypass_vendorcode:
+            return True
+        
+        code_suffix = code[7:]
+        
+        # Check if the current code exists in the database
+        self.cursor_spk.execute(
+            "SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (code_suffix,)
+        )
+        current_records = self.cursor_spk.fetchall()
+        
+        if current_records:
+            product_quantity = len(current_records)
+            inner_quantity = current_records[0][5].split('$')[-1]
             if product_quantity >= int(inner_quantity):
                 return False
-        return True
+        
+        # Check if the previous code exists in the database
+        self.cursor_spk.execute(
+            "SELECT * FROM i_packing WHERE RIGHT(LEFT(inner_code, 17), 10) = %s", (str(int(code_suffix) - 1),)
+        )
+        previous_records = self.cursor_spk.fetchall()
+        
+        if previous_records:
+            return True
+        else:
+            QMessageBox.critical(
+                self, "Error", "Xác minh code thất bại. Số thùng liền trước không tồn tại. Quét sai label"
+            )
+            return False
+    
     def verify_2ndinner_code(self, code):
         if code != self.inner_code.text():
             QMessageBox.critical(self, "Error", "Xác minh code thất bại. Inner code không trùng nhau")
@@ -507,7 +595,6 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.line.setEnabled(False)
             self.modelScan.setEnabled(False)
             self.shift_scan.setEnabled(False)
-            self.done_button.setEnabled(False)
             self.second_inner_code.setText(code)
             self.show_data()
     
@@ -545,7 +632,7 @@ class MainWindow(QtBaseClass, Ui_MainWindow):
             self.result_table.setItem(i, 3, self.ok_item() if record[8] else self.ng_item())
             self.result_table.setItem(i, 4, QTableWidgetItem(record[9].strftime("%Y-%m-%d %H:%M:%S")))
             self.result_table.setItem(i, 5, QTableWidgetItem(record[5]))
-        
+        self.load_innerID()
         
         
     def ok_item(self):
